@@ -1,0 +1,1 @@
+This folder's code is modified based on https://github.com/tmc/langchaingo/tree/main/llms/bedrock/internal/bedrockclient. Our thanks go to the original developers for their work.
