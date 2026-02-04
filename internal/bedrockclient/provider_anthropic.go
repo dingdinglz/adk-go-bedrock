@@ -273,6 +273,7 @@ type streamingCompletionResponseChunk struct {
 		Text         string `json:"text"`
 		StopReason   string `json:"stop_reason"`
 		StopSequence any    `json:"stop_sequence"`
+		PartialJson  string `json:"partial_json"`
 	} `json:"delta"`
 	AmazonBedrockInvocationMetrics struct {
 		InputTokenCount   int `json:"inputTokenCount"`
@@ -296,6 +297,13 @@ type streamingCompletionResponseChunk struct {
 			OutputTokens int `json:"output_tokens"`
 		} `json:"usage"`
 	} `json:"message"`
+	ContentBlock struct {
+		Type  string `json:"type"`
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Input struct {
+		} `json:"input"`
+	} `json:"content_block"`
 }
 
 func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntime.Client, modelInput *bedrockruntime.InvokeModelWithResponseStreamInput, options llms.CallOptions) (*llms.ContentResponse, error) {
@@ -310,6 +318,8 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 	defer stream.Close()
 
 	contentchoices := []*llms.ContentChoice{{GenerationInfo: map[string]interface{}{}}}
+
+	ContentType := make(map[int]string)
 	for e := range stream.Events() {
 		if err = stream.Err(); err != nil {
 			return nil, err
@@ -325,11 +335,30 @@ func parseStreamingCompletionResponse(ctx context.Context, client *bedrockruntim
 			switch resp.Type {
 			case "message_start":
 				contentchoices[0].GenerationInfo["input_tokens"] = resp.Message.Usage.InputTokens
-			case "content_block_delta":
-				if err = options.StreamingFunc(ctx, []byte(resp.Delta.Text)); err != nil {
-					return nil, err
+			case "content_block_start":
+				ContentType[resp.Index] = resp.ContentBlock.Type
+				if resp.ContentBlock.Type == "tool_use" {
+					contentchoices[0].ToolCalls = append(contentchoices[0].ToolCalls, llms.ToolCall{
+						ID:   resp.ContentBlock.ID,
+						Type: "function",
+						FunctionCall: &llms.FunctionCall{
+							Name: resp.ContentBlock.Name,
+						},
+					})
 				}
-				contentchoices[0].Content += resp.Delta.Text
+			case "content_block_delta":
+				switch ContentType[resp.Index] {
+				case "tool_use":
+					contentchoices[0].ToolCalls[len(contentchoices[0].ToolCalls)-1].FunctionCall.Arguments += resp.Delta.PartialJson
+				case "text":
+					if err = options.StreamingFunc(ctx, []byte(resp.Delta.Text)); err != nil {
+						if err.Error() != "yield break" {
+							return nil, err
+						}
+						return nil, nil
+					}
+					contentchoices[0].Content += resp.Delta.Text
+				}
 			case "message_delta":
 				contentchoices[0].StopReason = resp.Delta.StopReason
 				contentchoices[0].GenerationInfo["output_tokens"] = resp.Usage.OutputTokens

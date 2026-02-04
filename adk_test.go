@@ -90,7 +90,7 @@ func TestAdk(t *testing.T) {
 
 	// Run with streaming
 	runConfig := adkagent.RunConfig{
-		StreamingMode: adkagent.StreamingModeNone,
+		StreamingMode: adkagent.StreamingModeSSE,
 	}
 
 	fullResponse := ""
@@ -103,12 +103,15 @@ func TestAdk(t *testing.T) {
 		}
 		if event.Content != nil {
 			for _, part := range event.Content.Parts {
-				fullResponse += part.Text
+				if event.Partial {
+					fmt.Print(part.Text)
+					fullResponse += part.Text
+				}
 			}
 		}
 	}
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(fullResponse)
+	//fmt.Println(fullResponse)
 }

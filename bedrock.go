@@ -2,7 +2,6 @@ package adkgobedrock
 
 import (
 	"context"
-	"fmt"
 	"iter"
 
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -39,9 +38,7 @@ func (m *bedrockModel) GenerateContent(ctx context.Context, req *model.LLMReques
 	m.maybeAppendUserContent(req)
 	if stream {
 		// 流式
-		return func(yield func(*model.LLMResponse, error) bool) {
-			fmt.Println("我草怎么走到这里了")
-		}
+		return m.generateStream(ctx, req)
 	}
 	return func(yield func(*model.LLMResponse, error) bool) {
 		resp, err := m.generate(ctx, req)

@@ -13,7 +13,10 @@ import (
 
 func TestClaude(t *testing.T) {
 	// 创建静态凭证
-	staticCredentials := aws.Credentials{}
+	staticCredentials := aws.Credentials{
+		AccessKeyID:     "",
+		SecretAccessKey: "",
+	}
 
 	// 配置凭证提供程序
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
@@ -46,6 +49,10 @@ func TestClaude(t *testing.T) {
 				},
 			},
 		},
+		StreamingFunc: func(ctx context.Context, chunk []byte) error {
+			fmt.Println(string(chunk))
+			return nil
+		},
 	}
 	res, err := cli.CreateCompletion(context.Background(), "us.anthropic.claude-sonnet-4-5-20250929-v1:0", []Message{
 		{
@@ -69,8 +76,9 @@ func TestClaude(t *testing.T) {
 		fmt.Println("tool_call", len(choice.ToolCalls))
 		for j, tool := range choice.ToolCalls {
 			fmt.Println("tool_call [", j, "]")
-			fmt.Println(tool.Type)
+			fmt.Println(tool.Type, tool.ID)
 			fmt.Println(tool.FunctionCall.Name)
+			fmt.Println(tool.FunctionCall.Arguments)
 		}
 		fmt.Println("==================")
 	}
