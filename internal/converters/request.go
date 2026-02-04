@@ -229,7 +229,7 @@ func functionCallToBlock(call *genai.FunctionCall, role bedrockclient.ChatMessag
 	// Anthropic requires input to be a dictionary - ensure we have a valid map
 	// After JSON round-trip, nil maps stay nil, so we must always provide a valid map
 	var input any = call.Args
-	if call.Args == nil || len(call.Args) == 0 {
+	if len(call.Args) == 0 {
 		input = map[string]any{}
 	}
 
